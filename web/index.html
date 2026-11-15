@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NetGuard</title>
+<style>
+:root{--bg:#121316;--panel:#1b1d22;--line:#2c2f36;--txt:#dcdfe4;--dim:#8b909a;--acc:#4aa3ff;--up:#ff9f1a;--ok:#3ec46d;--bad:#ff5b5b;--warn:#f0b429}
+*{box-sizing:border-box}
+body{margin:0;font:14px system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--txt)}
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line)}
+header h1{font-size:17px;margin:0 10px 0 0}
+label.sw{display:flex;gap:6px;align-items:center;color:var(--dim)}
+nav{display:flex;gap:2px;padding:8px 18px 0;border-bottom:1px solid var(--line)}
+nav button{background:none;border:0;color:var(--dim);padding:8px 16px;cursor:pointer;border-bottom:2px solid transparent;font-size:14px}
+nav button.on{color:var(--txt);border-color:var(--acc)}
+main{padding:12px 18px 40px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--dim);font-weight:500;font-size:12px;position:sticky;top:0;background:var(--bg)}
+th.sortable{cursor:pointer;user-select:none}th.sortable:hover{color:var(--txt)}
+td.r,th.r{text-align:right}
+tr.sel{background:#1f2a3a}
+tr:hover td{background:#171a1f}
+tr.sysrow td{color:var(--dim);font-style:italic}
+tr.sec td{background:#16181c;color:var(--dim);font-size:12px;padding:8px}
+.row-click{cursor:pointer}
+input,select,textarea,button{font:inherit;color:var(--txt);background:#23262d;border:1px solid var(--line);border-radius:5px;padding:5px 8px}
+input{width:100%}
+input.sm{width:78px}
+.bar input[type=text],.bar input:not([type]){width:240px}
+button{cursor:pointer}
+button:hover{border-color:var(--acc)}
+button.allow:hover{border-color:var(--ok);color:var(--ok)}
+button.limit:hover{border-color:var(--warn);color:var(--warn)}
+button.block:hover{border-color:var(--bad);color:var(--bad)}
+button.primary{background:var(--acc);border-color:var(--acc);color:#04121f;font-weight:600}
+button:disabled{opacity:.35;cursor:default;border-color:var(--line)}
+.tag{padding:2px 8px;border-radius:10px;font-size:12px}
+.t-allow{background:#16301f;color:var(--ok)}.t-limit{background:#35290d;color:var(--warn)}
+.t-block{background:#3a1717;color:var(--bad)}.t-default{background:#25282f;color:var(--dim)}.t-sys{background:#14283d;color:var(--acc)}
+.banner{background:#3a2d0d;border:1px solid var(--warn);color:var(--warn);padding:8px 12px;border-radius:6px;margin-bottom:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.grid label{display:block;color:var(--dim);font-size:12px;margin-bottom:3px}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:10px 0}
+canvas{width:100%;height:240px;background:#16181c;border-radius:6px;margin-top:10px}
+.up{color:var(--up)}.dn{color:var(--acc)}
+#toast{position:fixed;right:18px;bottom:18px;padding:10px 16px;border-radius:6px;background:#1f3a28;border:1px solid var(--ok);display:none;max-width:60ch}
+#toast.err{background:#3a1717;border-color:var(--bad)}
+textarea{width:100%;height:420px;font-family:Consolas,monospace;font-size:13px}
+.dim{color:var(--dim)}
+.path{max-width:360px;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-size:12px}
+td.wrap{white-space:normal;max-width:520px}
+</style></head><body>
+<header>
+  <h1>NetGuard</h1>
+  <label class="sw">Unlisted apps:
+    <select id="defSel"><option value="allow">Allow</option><option value="block">Block</option></select></label>
+  <label class="sw"><input type="checkbox" id="filtChk" style="width:auto"> Filtering on</label>
+  <button id="pauseBtn" title="Pause = everything passes untouched at full speed">Pause</button>
+  <span id="chip" class="dim"></span>
+</header>
+<nav id="nav">
+  <button data-tab="overview" class="on">Overview</button><button data-tab="apps">Applications</button>
+  <button data-tab="rules">Rules</button><button data-tab="defaults">Defaults</button><button data-tab="config">Config</button>
+</nav>
+<main>
+<div id="banners"></div>
+
+<section id="tab-overview">
+  <div class="bar"><input id="ov_q" placeholder="Filter rules by name..."><span id="ov_cnt" class="dim"></span>
+    <span class="dim">Click a column to sort, click a row to graph it.</span></div>
+  <table id="ovTable"></table>
+  <canvas id="graph" width="1100" height="240"></canvas>
+  <div><span class="up">&#9632; upload</span> &nbsp; <span class="dn">&#9632; download</span> <span id="graphLbl" class="dim"></span></div>
+</section>
+
+<section id="tab-apps" hidden>
+  <p class="dim">Every program that sent or received traffic. Pick what each may do. With <b>Unlisted apps: Block</b> only apps set to <b>Allow</b> or <b>Limit</b> get through (the built-in <a href="#" id="toDefaults" style="color:var(--acc)">default whitelist</a> always passes).</p>
+  <div class="bar">
+    <input id="apps_q" placeholder="Search name or path...">
+    <select id="apps_chip">
+      <option value="all">Show: all apps</option><option value="active">Active now</option><option value="dropped">Has blocked packets</option>
+      <option value="allowed">Allowed</option><option value="limited">Limited</option><option value="blocked">Blocked by rule</option><option value="default">No rule (default policy)</option></select>
+    <label class="sw"><input type="checkbox" id="apps_win" style="width:auto"> Hide Windows components</label>
+    <button id="apps_reset">Reset view</button><span id="apps_cnt" class="dim"></span>
+  </div>
+  <table id="appTable"></table>
+</section>
+
+<section id="tab-rules" hidden>
+  <div class="bar">
+    <button class="primary" id="newRule">+ New rule</button>
+    <select id="preset"><option value="">Quick rules...</option>
+      <option value="lan">Allow local network</option>
+      <option value="loc-allow">Allow localhost</option><option value="loc-block">Block localhost</option>
+      <option value="all-limit">Limit ALL traffic</option><option value="all-block">Block ALL traffic</option></select>
+    <input id="rules_q" placeholder="Filter rules...">
+    <select id="rules_act"><option value="">all actions</option><option value="allow">allow</option><option value="limit">limit</option><option value="block">block</option><option value="off">disabled</option></select>
+    <span id="rules_cnt" class="dim"></span>
+  </div>
+  <p class="dim" style="margin:4px 0">First matching rule wins, so the order matters (reordering is off while a filter is active). Rules with no app apply to every app. The built-in default whitelist (DHCP, DNS, ...) is checked before all of these - see <a href="#" id="toDefaults2" style="color:var(--acc)">Defaults</a>.</p>
+  <div id="editor" class="card" hidden>
+    <div class="grid">
+      <div><label>Name</label><input id="f_name" placeholder="auto"></div>
+      <div><label>Action</label><select id="f_action"><option value="allow">Allow (whitelist)</option><option value="limit">Limit speed</option><option value="block">Block</option></select></div>
+      <div><label>Application (name or full path; empty = any app)</label><input id="f_app" list="appList" placeholder="chrome.exe"></div>
+      <div><label>Target: IPs / CIDR, localhost, lan (comma)</label><input id="f_ip" placeholder="empty = all traffic"></div>
+      <div><label>Domains (comma)</label><input id="f_dom" placeholder="example.com"></div>
+      <div><label>Protocol</label><select id="f_proto"><option value="">any</option><option>tcp</option><option>udp</option><option>icmp</option><option>icmpv6</option></select></div>
+      <div><label>Port or range</label><input id="f_port" placeholder="443 or 6881-6999"></div>
+      <div><label>Upload limit (e.g. 512k, 2M)</label><input id="f_up"></div>
+      <div><label>Download limit</label><input id="f_down"></div>
+      <div><label>Enabled</label><select id="f_en"><option value="1">yes</option><option value="0">no</option></select></div>
+    </div>
+    <p><button class="primary" id="saveRule">Save rule</button> <button id="cancelRule">Cancel</button></p>
+    <datalist id="appList"></datalist>
+  </div>
+  <table id="ruleTable" style="margin-top:10px"></table>
+</section>
+
+<section id="tab-defaults" hidden>
+  <p class="dim">Built-in default whitelist: basic Windows connectivity that is <b>always allowed first</b> - before your rules and before "Unlisted apps: Block" - so a rule on <code>svchost.exe</code> or a block-everything setup can't break your connection.
+  They are matched by protocol/port (DHCP and DNS run as services inside svchost.exe, so they can't be told apart by program). Untick an item to stop whitelisting it.</p>
+  <table id="sysTable"></table>
+</section>
+
+<section id="tab-config" hidden>
+  <p class="dim">Advanced: the raw rules file. Saving validates everything first; nothing changes if there is an error.</p>
+  <textarea id="cfgText" spellcheck="false"></textarea>
+  <p><button class="primary" id="saveCfg">Save &amp; apply</button> <button id="reloadCfg">Reload from disk</button></p>
+</section>
+</main>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/*PURE-START*/
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function fmt(b){const u=['bit/s','Kbit/s','Mbit/s','Gbit/s'];let i=0;while(b>=1000&&i<3){b/=1000;i++}return b.toFixed(i?1:0)+' '+u[i]}
+function fb(b){const u=['B','KB','MB','GB','TB'];let i=0;while(b>=1024&&i<4){b/=1024;i++}return b.toFixed(i?1:0)+' '+u[i]}
+function ago(s){return s<0?'never':s<2?'now':s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h'}
+function stripComment(l){let q=false;for(let i=0;i<l.length;i++){const c=l[i];if(c==='"')q=!q;else if(c==='#'&&!q&&(i===0||/\s/.test(l[i-1])))return l.slice(0,i)}return l}
+function parseCfg(text){
+  const cfg={g:{default:'allow',filtering:'on',queue_ms:'250'},rules:[],sysOff:[]};
+  text.split('\n').forEach(raw=>{
+    const toks=stripComment(raw).match(/(?:[^\s"]|"[^"]*")+/g); if(!toks)return;
+    const kind=toks.shift(), kv={}, multi={app:[],ip:[],domain:[]};
+    toks.forEach(t=>{const i=t.indexOf('='); if(i<0)return; const k=t.slice(0,i), v=t.slice(i+1).replace(/"/g,'');
+      if(k in multi)multi[k].push(v); else kv[k]=v;});
+    if(kind==='global'){ if(kv.default)cfg.g.default=kv.default; if(kv.filtering)cfg.g.filtering=kv.filtering; if(kv.queue_ms)cfg.g.queue_ms=kv.queue_ms; }
+    else if(kind==='system'){ if(kv.name&&kv.enabled==='no')cfg.sysOff.push(kv.name); }
+    else if(kind==='rule') cfg.rules.push({name:kv.name||'',action:kv.action||'allow',enabled:kv.enabled!=='no',
+      app:multi.app,ip:multi.ip,domain:multi.domain,proto:kv.proto||'',port:kv.port||'',up:kv.up||'',down:kv.down||''});
+  });
+  return cfg;
+}
+function q(v){return /[\s"#]/.test(v)?'"'+v+'"':v}
+function serialize(cfg){
+  let o='# NetGuard rules - first match wins. Managed by the GUI; hand edits are fine (comments are not kept).\n';
+  o+=`global default=${cfg.g.default} filtering=${cfg.g.filtering} queue_ms=${cfg.g.queue_ms}\n`;
+  cfg.sysOff.forEach(n=>o+=`system name=${n} enabled=no\n`);
+  o+='\n';
+  cfg.rules.forEach(r=>{
+    let l=`rule name=${r.name} action=${r.action}`;
+    if(!r.enabled)l+=' enabled=no';
+    r.app.forEach(a=>l+=' app='+q(a)); r.ip.forEach(a=>l+=' ip='+q(a)); r.domain.forEach(a=>l+=' domain='+q(a));
+    if(r.proto)l+=' proto='+r.proto; if(r.port)l+=' port='+r.port;
+    if(r.action==='limit'){ if(r.up)l+=' up='+r.up; if(r.down)l+=' down='+r.down; }
+    o+=l+'\n';
+  });
+  return o;
+}
+function sameApp(a,app){a=a.toLowerCase();return a===app.path.toLowerCase()||a===app.name.toLowerCase()}
+function slug(s){return s.replace(/[^A-Za-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,30)||'rule'}
+function uniq(cfg,name){let n=name,i=2;while(cfg.rules.some(r=>r.name===n))n=name+'-'+(i++);return n}
+function appRuleIndex(cfg,app){return cfg.rules.findIndex(r=>r.app.some(a=>sameApp(a,app))&&!r.ip.length&&!r.domain.length&&!r.proto&&!r.port)}
+function appStatus(cfg,app){return cfg.rules.find(r=>r.enabled&&r.app.some(a=>sameApp(a,app)))||null}
+function applyAppAction(cfg,app,action,up,down){
+  const i=appRuleIndex(cfg,app);
+  if(action==='reset'){ if(i>=0)cfg.rules.splice(i,1); return; }
+  const lim=action==='limit';
+  if(i>=0){ Object.assign(cfg.rules[i],{action,enabled:true,up:lim?up:'',down:lim?down:''}); }
+  else cfg.rules.unshift({name:uniq(cfg,slug(app.name)),action,enabled:true,app:[app.path||app.name],ip:[],domain:[],proto:'',port:'',up:lim?up:'',down:lim?down:''});
+}
+/* ---- table helpers: rows, filtering, sorting ---- */
+const ORDER={blocked:0,limited:1,allowed:2,default:3};
+const WINPATH=/^[a-z]:\\windows\\/i;
+function buildAppRows(apps,cfg){
+  return apps.map(a=>{const r=appStatus(cfg,a);
+    const status=r?(r.action==='allow'?'allowed':r.action==='limit'?'limited':'blocked'):'default';
+    return Object.assign({},a,{status,rule:r,act:a.up_bps+a.down_bps});});
+}
+function filterAppRows(rows,f){
+  const s=(f.q||'').trim().toLowerCase();
+  return rows.filter(r=>{
+    if(s&&!(r.name.toLowerCase().includes(s)||r.path.toLowerCase().includes(s)))return false;
+    if(f.hideWin&&WINPATH.test(r.path))return false;
+    switch(f.chip){case 'active':return r.act>0;case 'dropped':return r.drops>0;
+      case 'allowed':case 'limited':case 'blocked':case 'default':return r.status===f.chip;default:return true}
+  });
+}
+function sortRows(rows,key,dir,get){
+  const g=get||(r=>r[key]);
+  return rows.slice().sort((a,b)=>{let x=g(a),y=g(b);
+    if(typeof x==='string'){x=x.toLowerCase();y=String(y).toLowerCase()}
+    const c=(x<y?-1:x>y?1:0)*dir; return c||String(a.name).localeCompare(String(b.name))});
+}
+function filterRuleRows(rules,f){
+  const s=(f.q||'').trim().toLowerCase();
+  return rules.map((r,i)=>({r,i})).filter(({r})=>{
+    if(f.act==='off'&&r.enabled)return false;
+    if(f.act&&f.act!=='off'&&r.action!==f.act)return false;
+    if(!s)return true;
+    return [r.name,r.action,r.proto,r.port,...r.app,...r.ip,...r.domain].join(' ').toLowerCase().includes(s);
+  });
+}
+/*PURE-END*/
+
+const $=id=>document.getElementById(id);
+const S={cfg:null,apps:[],sys:[],stats:null,sel:0,tab:'overview',edit:-2,busy:false,view:[]};
+const VKEY='netguard.view.v1';
+function defView(){return {apps:{q:'',chip:'all',hideWin:false,k:'act',d:-1},rules:{q:'',act:''},ov:{q:'',k:'i',d:1}}}
+function loadView(){const d=defView();try{const s=JSON.parse(localStorage.getItem(VKEY)||'{}');for(const k in d)Object.assign(d[k],s[k]||{})}catch(e){}return d}
+const V=loadView();
+function saveView(){try{localStorage.setItem(VKEY,JSON.stringify(V))}catch(e){}}
+function th(label,key,tbl,cls){const s=V[tbl];const ar=s.k===key?(s.d>0?' \u25B2':' \u25BC'):'';return `<th class="sortable ${cls||''}" data-sort="${key}" data-tbl="${tbl}">${label}${ar}</th>`}
+
+function toast(msg,err){const t=$('toast');t.textContent=msg;t.className=err?'err':'';t.style.display='block';clearTimeout(toast.h);toast.h=setTimeout(()=>t.style.display='none',err?7000:2500)}
+async function loadCfg(){const t=await (await fetch('/api/config')).text(); S.cfg=parseCfg(t); $('cfgText').value=t; renderHeader(); renderRules(); renderApps()}
+async function pollSys(){try{S.sys=(await (await fetch('/api/system')).json()).items}catch(e){} renderDefaults(); renderOverview()}
+async function postCfg(text){
+  const r=await fetch('/api/config',{method:'POST',headers:{'X-NetGuard':'1','Content-Type':'text/plain'},body:text});
+  let j={ok:false,error:'HTTP '+r.status}; try{j=await r.json()}catch(e){}
+  if(j.ok){toast('Saved and applied');}else{toast('Rejected: '+j.error,true);}
+  await loadCfg(); await pollSys(); return j.ok;
+}
+const saveModel=()=>postCfg(serialize(S.cfg));
+
+/* ---------- header / banners ---------- */
+function renderHeader(){ if(!S.cfg)return; $('defSel').value=S.cfg.g.default; $('filtChk').checked=S.cfg.g.filtering!=='off'; }
+function renderBanners(){
+  const st=S.stats; let h=''; if(!st)return;
+  if(st.loopback_wanted&&!st.loopback_active) h+='<div class="banner">Localhost rules are saved, but NetGuard only starts capturing localhost traffic at launch. Restart NetGuard to apply them.</div>';
+  if(S.cfg&&S.cfg.g.default==='block'&&!st.app_support) h+='<div class="banner">This backend cannot identify applications, so "Block unlisted apps" is ignored here (Windows backend only).</div>';
+  if(st.paused) h+='<div class="banner">Filtering is PAUSED: all traffic passes untouched at full speed. Press Resume to enforce your rules again.</div>';
+  else if(!st.filtering) h+='<div class="banner">Filtering is OFF: all traffic passes untouched.</div>';
+  $('banners').innerHTML=h;
+  $('pauseBtn').textContent=st.paused?'Resume':'Pause';
+  $('chip').textContent='default: '+st.default+' | '+(st.enforcing?'ENFORCING (every packet is inspected)':'MONITOR-ONLY (traffic not slowed)')+' | queue '+st.queue_ms+' ms';
+}
+
+/* ---------- overview ---------- */
+function renderOverview(){
+  const st=S.stats; if(!st)return;
+  const f=V.ov, s=f.q.trim().toLowerCase();
+  let rows=st.rules.filter(r=>!s||r.name.toLowerCase().includes(s));
+  rows=sortRows(rows,f.k,f.d,r=>r[f.k]);
+  const lim=b=>b?fmt(b):'-';
+  let h='<tr>'+th('Rule','name','ov')+th('Action','action','ov')+th('Up','up_bps','ov','r')+th('Down','down_bps','ov','r')+
+    '<th class="r">Up limit</th><th class="r">Down limit</th>'+th('Sent','up_bytes','ov','r')+th('Received','down_bytes','ov','r')+th('Dropped pkts','drops','ov','r')+'</tr>';
+  rows.forEach(r=>{h+=`<tr class="row-click ${r.i===S.sel?'sel':''}" data-i="${r.i}"><td>${esc(r.name)}<td>${r.action}<td class="r">${fmt(r.up_bps)}<td class="r">${fmt(r.down_bps)}<td class="r">${lim(r.limit_up)}<td class="r">${lim(r.limit_down)}<td class="r">${fb(r.up_bytes)}<td class="r">${fb(r.down_bytes)}<td class="r">${r.drops}</tr>`});
+  if(S.sys.length){
+    h+='<tr class="sec"><td colspan="9">Built-in default whitelist (always passes first)</tr>';
+    S.sys.filter(i=>!s||i.name.includes(s)||i.label.toLowerCase().includes(s)).forEach(i=>{
+      h+=`<tr class="sysrow"><td>${esc(i.name)}<td><span class="tag t-sys">${i.enabled?'default allow':'off'}</span><td class="r">${fmt(i.up_bps)}<td class="r">${fmt(i.down_bps)}<td class="r">-<td class="r">-<td class="r">${fb(i.up_bytes)}<td class="r">${fb(i.down_bytes)}<td class="r">0</tr>`});
+  }
+  $('ovTable').innerHTML=h; $('ov_cnt').textContent=rows.length+' of '+st.rules.length;
+}
+async function drawGraph(){
+  const d=await (await fetch('/api/history?i='+S.sel)).json();
+  const c=$('graph'),g=c.getContext('2d'),w=c.width,h=c.height; g.clearRect(0,0,w,h);
+  const mx=Math.max(1,...d.up,...d.down)*1.1;
+  g.strokeStyle='#2c2f36';g.lineWidth=1;for(let i=1;i<4;i++){g.beginPath();g.moveTo(0,h*i/4);g.lineTo(w,h*i/4);g.stroke()}
+  [[d.up,'#ff9f1a'],[d.down,'#4aa3ff']].forEach(([a,col])=>{g.beginPath();g.strokeStyle=col;g.lineWidth=2;
+    a.forEach((v,k)=>{const x=k*w/Math.max(1,a.length-1),y=h-v/mx*h;k?g.lineTo(x,y):g.moveTo(x,y)});g.stroke()});
+  g.fillStyle='#8b909a';g.font='13px sans-serif';g.fillText(fmt(mx),6,16);
+  $('graphLbl').textContent=' last '+d.up.length+' s - '+(S.stats&&S.stats.rules[S.sel]?S.stats.rules[S.sel].name:'');
+}
+
+/* ---------- applications ---------- */
+function renderApps(){
+  if(!S.cfg)return;
+  if(S.tab==='apps'&&document.activeElement&&document.activeElement.closest('#appTable'))return;  /* don't clobber typing */
+  const known=S.apps.slice();
+  S.cfg.rules.forEach(r=>r.app.forEach(a=>{ if(!known.some(k=>sameApp(a,k)))
+    known.push({id:-1,name:a.split(/[\\/]/).pop(),path:/[\\/]/.test(a)?a:'',up_bps:0,down_bps:0,up_bytes:0,down_bytes:0,drops:0,seen_s:-1}); }));
+  const all=buildAppRows(known,S.cfg), f=V.apps;
+  let rows=filterAppRows(all,f);
+  const get=f.k==='status'?(r=>ORDER[r.status]):f.k==='seen_s'?(r=>r.seen_s<0?1e9:r.seen_s):null;
+  rows=sortRows(rows,f.k,f.d,get); S.view=rows;
+  let h='<tr>'+th('Application','name','apps')+th('Up','up_bps','apps','r')+th('Down','down_bps','apps','r')+th('Blocked pkts','drops','apps','r')+
+    th('Status','status','apps')+th('Seen','seen_s','apps')+'<th>Up limit</th><th>Down limit</th><th>Action</th></tr>';
+  rows.forEach((a,idx)=>{
+    const r=a.rule; let tag='<span class="tag t-default">default ('+esc(S.cfg.g.default)+')</span>', up='',down='';
+    if(r){ tag=`<span class="tag t-${r.action}">${a.status}</span>`; up=r.up; down=r.down; }
+    h+=`<tr data-idx="${idx}"><td title="${esc(a.path)}"><b>${esc(a.name)}</b><div class="path">${esc(a.path)}</div>
+      <td class="r">${fmt(a.up_bps)}<td class="r">${fmt(a.down_bps)}<td class="r">${a.drops}<td>${tag}<td class="dim">${ago(a.seen_s)}
+      <td><input class="sm" data-k="up" value="${esc(up)}" placeholder="512k"><td><input class="sm" data-k="down" value="${esc(down)}" placeholder="2M">
+      <td><button class="allow" data-act="allow">Allow</button> <button class="limit" data-act="limit">Limit</button> <button class="block" data-act="block">Block</button> <button data-act="reset" title="remove this app's rule">Reset</button></tr>`;
+  });
+  $('appTable').innerHTML=h; $('apps_cnt').textContent=rows.length+' of '+all.length;
+  $('appList').innerHTML=known.filter(a=>a.id!==0).map(a=>`<option value="${esc(a.path||a.name)}">${esc(a.name)}</option>`).join('');
+}
+
+/* ---------- rules ---------- */
+function renderRules(){
+  if(!S.cfg)return;
+  const f=V.rules, rows=filterRuleRows(S.cfg.rules,f), filtered=!!(f.q||f.act), n=S.cfg.rules.length;
+  let h='<tr><th>#<th>On<th>Name<th>Action<th>Application<th>Target<th>Proto / port<th>Up<th>Down<th></tr>';
+  rows.forEach(({r,i})=>{
+    const tgt=[...r.ip,...r.domain].join(', ')||'all traffic', dis=filtered?'disabled':'';
+    h+=`<tr data-i="${i}"><td class="dim">${i+1}<td><input type="checkbox" data-a="toggle" ${r.enabled?'checked':''} style="width:auto">
+      <td>${esc(r.name)}<td><span class="tag t-${r.action}">${r.action}</span>
+      <td title="${esc(r.app.join(', '))}">${esc(r.app.map(a=>a.split(/[\\/]/).pop()).join(', ')||'any app')}<td>${esc(tgt)}
+      <td>${esc((r.proto||'any')+(r.port?' : '+r.port:''))}<td>${esc(r.up)}<td>${esc(r.down)}
+      <td><button data-a="up" ${dis}>&#9650;</button> <button data-a="down" ${dis}>&#9660;</button> <button data-a="edit">Edit</button> <button data-a="del">&#10005;</button></tr>`;
+  });
+  $('ruleTable').innerHTML=h; $('rules_cnt').textContent=rows.length+' of '+n;
+}
+const PRESETS={
+  lan:{name:'allow-lan',action:'allow',ip:['lan']},
+  'loc-allow':{name:'allow-localhost',action:'allow',ip:['localhost']}, 'loc-block':{name:'block-localhost',action:'block',ip:['localhost']},
+  'all-limit':{name:'limit-all',action:'limit',up:'10M',down:'10M'}, 'all-block':{name:'block-all',action:'block'}
+};
+function openEditor(i,tpl){
+  S.edit=i; const r=i>=0?S.cfg.rules[i]:Object.assign({name:'',action:'allow',enabled:true,app:[],ip:[],domain:[],proto:'',port:'',up:'',down:''},tpl||{});
+  $('f_name').value=r.name; $('f_action').value=r.action; $('f_app').value=(r.app||[]).join(';');
+  $('f_ip').value=(r.ip||[]).join(','); $('f_dom').value=(r.domain||[]).join(',');
+  $('f_proto').value=r.proto||''; $('f_port').value=r.port||''; $('f_up').value=r.up||''; $('f_down').value=r.down||'';
+  $('f_en').value=r.enabled===false?'0':'1'; $('editor').hidden=false; $('f_name').focus();
+}
+const split=(s,sep)=>s.split(sep).map(x=>x.trim()).filter(Boolean);
+async function saveRule(){
+  const rule={name:'',action:$('f_action').value,enabled:$('f_en').value==='1',app:split($('f_app').value,';'),
+    ip:split($('f_ip').value,','),domain:split($('f_dom').value,','),proto:$('f_proto').value,port:$('f_port').value.trim(),
+    up:$('f_up').value.trim(),down:$('f_down').value.trim()};
+  let name=slug($('f_name').value.trim()||(rule.app[0]?rule.app[0].split(/[\\/]/).pop():'rule'));
+  if(S.edit>=0){ rule.name=S.cfg.rules.some((r,i)=>i!==S.edit&&r.name===name)?uniq(S.cfg,name):name; S.cfg.rules[S.edit]=rule; }
+  else { rule.name=uniq(S.cfg,name); S.cfg.rules.push(rule); }
+  $('editor').hidden=true; await saveModel();
+}
+
+/* ---------- defaults ---------- */
+function renderDefaults(){
+  if(S.tab==='defaults'&&document.activeElement&&document.activeElement.closest('#sysTable'))return;
+  let h='<tr><th>On<th>Item<th>What it covers<th>Matches<th class="r">Up<th class="r">Down<th class="r">Sent<th class="r">Received</tr>';
+  S.sys.forEach(i=>{h+=`<tr><td><input type="checkbox" data-sys="${esc(i.name)}" ${i.enabled?'checked':''} style="width:auto">
+    <td><span class="tag t-sys">${esc(i.name)}</span><td class="wrap">${esc(i.label)}<td class="dim">${esc(i.detail)}
+    <td class="r">${fmt(i.up_bps)}<td class="r">${fmt(i.down_bps)}<td class="r">${fb(i.up_bytes)}<td class="r">${fb(i.down_bytes)}</tr>`});
+  $('sysTable').innerHTML=h;
+}
+
+/* ---------- events ---------- */
+function showTab(t){S.tab=t;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  ['overview','apps','rules','defaults','config'].forEach(n=>$('tab-'+n).hidden=n!==t); if(t==='config')loadCfg(); poll();}
+$('nav').addEventListener('click',e=>{const t=e.target.dataset.tab;if(t)showTab(t)});
+$('toDefaults').onclick=e=>{e.preventDefault();showTab('defaults')};
+$('toDefaults2').onclick=e=>{e.preventDefault();showTab('defaults')};
+document.addEventListener('click',e=>{               /* click a column header to sort */
+  const h=e.target.closest('th.sortable'); if(!h)return;
+  const t=h.dataset.tbl,k=h.dataset.sort,s=V[t];
+  if(s.k===k)s.d=-s.d; else{s.k=k;s.d=(k==='name'||k==='status'||k==='action'||k==='i')?1:-1}
+  saveView(); t==='apps'?renderApps():renderOverview();
+});
+$('ovTable').addEventListener('click',e=>{const tr=e.target.closest('tr[data-i]');if(tr){S.sel=+tr.dataset.i;renderOverview();drawGraph()}});
+$('ov_q').oninput=e=>{V.ov.q=e.target.value;saveView();renderOverview()};
+$('apps_q').oninput=e=>{V.apps.q=e.target.value;saveView();renderApps()};
+$('apps_chip').onchange=e=>{V.apps.chip=e.target.value;saveView();renderApps()};
+$('apps_win').onchange=e=>{V.apps.hideWin=e.target.checked;saveView();renderApps()};
+$('apps_reset').onclick=()=>{Object.assign(V.apps,defView().apps);saveView();syncControls();renderApps()};
+$('rules_q').oninput=e=>{V.rules.q=e.target.value;saveView();renderRules()};
+$('rules_act').onchange=e=>{V.rules.act=e.target.value;saveView();renderRules()};
+$('appTable').addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-act]'); if(!b)return;
+  const tr=b.closest('tr'), app=S.view[+tr.dataset.idx], act=b.dataset.act;
+  const up=tr.querySelector('[data-k=up]').value.trim(), down=tr.querySelector('[data-k=down]').value.trim();
+  if(app.id===0){ toast('"(unknown)" traffic has no program to target. The built-in default whitelist already covers DNS/DHCP/ICMP.',true); return }
+  if(act==='limit'&&!up&&!down){toast('Type an upload and/or download limit first (e.g. 512k, 2M)',true);return}
+  applyAppAction(S.cfg,app,act,up,down); await saveModel();
+});
+$('ruleTable').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]'); if(!b||b.disabled)return; const i=+b.closest('tr').dataset.i, a=b.dataset.a, R=S.cfg.rules;
+  if(a==='toggle'){R[i].enabled=b.checked}
+  else if(a==='del'){ if(!confirm('Delete rule "'+R[i].name+'"?'))return; R.splice(i,1) }
+  else if(a==='edit'){openEditor(i);return}
+  else if(a==='up'&&i>0){[R[i-1],R[i]]=[R[i],R[i-1]]}
+  else if(a==='down'&&i<R.length-1){[R[i+1],R[i]]=[R[i],R[i+1]]}
+  else return;
+  await saveModel();
+});
+$('sysTable').addEventListener('change',async e=>{
+  const n=e.target.dataset.sys; if(!n)return;
+  const off=S.cfg.sysOff.filter(x=>x!==n); if(!e.target.checked)off.push(n);
+  S.cfg.sysOff=off; await saveModel();
+});
+$('newRule').onclick=()=>openEditor(-1);
+$('cancelRule').onclick=()=>$('editor').hidden=true;
+$('saveRule').onclick=saveRule;
+$('preset').onchange=e=>{const p=PRESETS[e.target.value]; e.target.value=''; if(p)openEditor(-1,p)};
+$('defSel').onchange=async e=>{
+  if(e.target.value==='block'&&!confirm('Block every application that has no Allow/Limit rule?\n\nDHCP, DNS, ping, time sync and VPN/PPP protocols stay allowed (Defaults tab). Make sure the apps you need are set to Allow first.')){renderHeader();return}
+  S.cfg.g.default=e.target.value; await saveModel();
+};
+$('pauseBtn').onclick=async()=>{ await fetch('/api/pause',{method:'POST',headers:{'X-NetGuard':'1','Content-Type':'text/plain'},body:(S.stats&&S.stats.paused)?'0':'1'}); S.busy=false; poll() };
+$('filtChk').onchange=async e=>{S.cfg.g.filtering=e.target.checked?'on':'off'; await saveModel()};
+$('saveCfg').onclick=()=>postCfg($('cfgText').value);
+$('reloadCfg').onclick=loadCfg;
+function syncControls(){ $('ov_q').value=V.ov.q; $('apps_q').value=V.apps.q; $('apps_chip').value=V.apps.chip; $('apps_win').checked=V.apps.hideWin; $('rules_q').value=V.rules.q; $('rules_act').value=V.rules.act }
+
+/* ---------- polling ---------- */
+async function poll(){
+  if(S.busy||document.hidden)return; S.busy=true;       /* no work while the tab is in the background */
+  try{
+    S.stats=await (await fetch('/api/stats')).json(); renderBanners();
+    if(S.tab==='overview'||S.tab==='defaults'){ S.sys=(await (await fetch('/api/system')).json()).items; renderDefaults(); }
+    if(S.tab==='overview'){renderOverview();await drawGraph()}
+    if(S.tab==='apps'||S.tab==='rules'){S.apps=(await (await fetch('/api/apps')).json()).apps; if(S.tab==='apps')renderApps()}
+  }catch(e){} S.busy=false;
+}
+syncControls(); loadCfg().then(poll); setInterval(poll,1500);
+</script></body></html>
