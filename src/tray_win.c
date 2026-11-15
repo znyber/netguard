@@ -14,7 +14,7 @@ static HWND        g_hwnd;
 static NOTIFYICONDATAW g_nid;
 static HICON       g_ico_on, g_ico_off;
 static UINT        g_wm_taskbar;
-static int         g_state = ST_DOWN, g_enforcing, g_autorun, g_warned;
+static int         g_state = ST_DOWN, g_enforcing, g_autorun;
 static double      g_up_mbps, g_down_mbps;
 
 static int gui_port(void) { int p = win_read_port(g_cfg.data_dir); return p ? p : 8080; }
@@ -166,8 +166,8 @@ int tray_main(const tray_cfg_t *c) {
     WSADATA wsa; WSAStartup(MAKEWORD(2, 2), &wsa);
     g_cfg = *c;
     g_autorun = win_autorun_get();
-    g_ico_on  = load_icon(1, IDI_APPLICATION);
-    g_ico_off = load_icon(2, IDI_WARNING);
+    g_ico_on  = load_icon(1, MAKEINTRESOURCEW(32512))   /* IDI_APPLICATION, wide form */;
+    g_ico_off = load_icon(2, MAKEINTRESOURCEW(32515))       /* IDI_WARNING, wide form */;
     g_wm_taskbar = RegisterWindowMessageW(L"TaskbarCreated");
 
     WNDCLASSEXW wc; memset(&wc, 0, sizeof wc);

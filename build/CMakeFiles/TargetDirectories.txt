@@ -1,0 +1,4 @@
+R:/netguard/build/CMakeFiles/netguard.dir
+R:/netguard/build/CMakeFiles/netguardc.dir
+R:/netguard/build/CMakeFiles/edit_cache.dir
+R:/netguard/build/CMakeFiles/rebuild_cache.dir

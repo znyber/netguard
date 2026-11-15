@@ -1,0 +1,25 @@
+# ninja log v7
+17	101	8164574454366502	CMakeFiles/netguard.dir/netguard.rc.obj	3bf343e3d238b375
+32	126	8164574454516557	CMakeFiles/netguardc.dir/netguard.rc.obj	4ac375d5be42fb35
+25	1048	8164574454451555	CMakeFiles/netguardc.dir/src/sim.c.obj	d6bb4e9869e08c88
+4	1072	8164574454243164	CMakeFiles/netguard.dir/src/main.c.obj	d2c450447c0d24f9
+22	1102	8164574454424013	CMakeFiles/netguardc.dir/src/delayq.c.obj	8baa061cad0b46d2
+28	1121	8164574454479093	CMakeFiles/netguardc.dir/src/winutil.c.obj	1b022566d28f2b65
+18	1141	8164574454381489	CMakeFiles/netguardc.dir/src/main.c.obj	68348a7c0dba75ca
+31	1142	8164574454501572	CMakeFiles/netguardc.dir/src/tray_win.c.obj	8faac10bd47b4774
+13	1198	8164574454332336	CMakeFiles/netguard.dir/src/winutil.c.obj	8388c11a34a1269b
+7	1271	8164574454266505	CMakeFiles/netguard.dir/src/util.c.obj	aea35ae046a60f0c
+16	1312	8164574454353946	CMakeFiles/netguard.dir/src/tray_win.c.obj	508184293ad9732a
+11	1343	8164574454303687	CMakeFiles/netguard.dir/src/sim.c.obj	e6f3d3a98b7ace9e
+14	1347	8164574454339195	CMakeFiles/netguard.dir/src/winsvc.c.obj	381b39f8aeab8af5
+29	1351	8164574454494080	CMakeFiles/netguardc.dir/src/winsvc.c.obj	c3133703cca5365e
+21	1367	8164574454409028	CMakeFiles/netguardc.dir/src/util.c.obj	671bdf37965b87a5
+8	1385	8164574454281210	CMakeFiles/netguard.dir/src/delayq.c.obj	f1f2ac168702427
+24	1448	8164574454436570	CMakeFiles/netguardc.dir/src/web.c.obj	8cf2a9e66cca0346
+9	1449	8164574454288933	CMakeFiles/netguard.dir/src/web.c.obj	7cc78d7c3fbc5be9
+27	1892	8164574454464110	CMakeFiles/netguardc.dir/src/backend_win.c.obj	88ff106d5913a27f
+12	1918	8164574454318672	CMakeFiles/netguard.dir/src/backend_win.c.obj	3cebcac30b1ad782
+20	2037	8164574454396472	CMakeFiles/netguardc.dir/src/engine.c.obj	59d66eb161cec0cd
+6	2129	8164574454258885	CMakeFiles/netguard.dir/src/engine.c.obj	afa751f0d55d2cc7
+2037	2191	8164574474568031	netguardc.exe	eb155b449cfc9cc3
+2130	2269	8164574475491100	netguard.exe	ac54dc3bbdabc679
